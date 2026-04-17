@@ -1,23 +1,34 @@
-# volta-update-all
+# `volta-update-all`
 
-A small POSIX-compliant `sh` script to update all tools managed by [Volta](https://volta.sh/).
+A small POSIX-compliant `sh` script to update all tools managed by
+[Volta](https://volta.sh/).
 
 ## Features
 
-- **Comprehensive updates:** Updates Volta-managed tools such as Node.js, npm, Yarn, pnpm, and installed global packages based on your configured channels (`lts` or `latest`).
-- **Safe dry runs:** Preview potential changes with `--dry-run` before applying them.
+- **Comprehensive updates:** Updates Volta-managed tools such as
+  Node.js, `npm`, Yarn, `pnpm`, and installed global packages based on
+  your configured channels (`lts` or `latest`).
+- **Safe dry runs:** Preview potential changes with `--dry-run` before
+  applying them.
 - **Flexible exclusions:** Skip specific tools with `--exclude`.
-- **User-local install:** Install the script to `~/.local/bin/volta-update-all` with `--install`.
-- **pnpm-aware:** Automatically skips pnpm unless `VOLTA_FEATURE_PNPM=1` is enabled.
-- **Scoped package support:** Correctly handles package names such as `@scope/pkg`.
+- **User-local install:** Install the script to
+  `~/.local/bin/volta-update-all` with `--install`.
+- **pnpm-aware:** Automatically skips `pnpm` unless you enable Volta's
+  `VOLTA_FEATURE_PNPM=1` feature flag.
+- **Scoped package support:** Correctly handles package names such as
+  `@scope/pkg`.
 - **Portable:** Runs with POSIX `sh`; no Bash-only features required.
-- **Tested:** Includes a shell test suite for core behavior and edge cases.
+- **Tested:** Includes a shell test suite for core behavior and edge
+  cases.
 
 ## Prerequisites
 
-- [Volta](https://volta.sh/) must be installed and available in your `PATH`.
-- Standard Unix utilities used by the script: `awk`, `grep`, `sed`, `sort`, `head`, `expr`, `cp`, `chmod`, and `mkdir`.
-- **To update pnpm**, enable Volta's feature flag before running the script:
+- Install [Volta](https://volta.sh/) and make it available in your
+  `PATH`.
+- Standard Unix utilities used by the script: `awk`, `grep`, `sed`,
+  `sort`, `head`, `expr`, `cp`, `chmod`, and `mkdir`.
+- **To update pnpm**, enable Volta's feature flag before running the
+  script:
 
   ```sh
   export VOLTA_FEATURE_PNPM=1
@@ -53,7 +64,7 @@ Then run it from anywhere:
 volta-update-all
 ```
 
-> Ensure `~/.local/bin` is in your `PATH`.
+> Add `~/.local/bin` to your `PATH`.
 
 ### Flags
 
@@ -87,10 +98,13 @@ volta-update-all --dry-run
 
 ## Configuration
 
-You can configure the update channels by modifying the variables at the top of the script:
+You can configure the update channels by modifying the variables at the
+top of the script:
 
-- `NODE_CHANNEL`: The update channel for Node.js. Defaults to `lts`. Change it to `latest` for the newest Node.js version.
-- `DEFAULT_CHANNEL`: The update channel for all other tools. Defaults to `latest`.
+- `NODE_CHANNEL`: The update channel for Node.js. Defaults to `lts`.
+  Change it to `latest` for the newest Node.js version.
+- `DEFAULT_CHANNEL`: The update channel for all other tools. Defaults to
+  `latest`.
 
 ## Testing
 
@@ -102,8 +116,8 @@ Run the shell test suite with:
 
 ## License
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+The project uses the `MIT` License. See the `LICENSE` file for details.
 
 ---
 
-_Created by Dominik Roblek © 2025_
+_Created by `Dominik Roblek` © 2025_
