@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # volta-update-all.sh - update every Volta-managed tool
 #
 # Flags:
@@ -30,7 +30,7 @@ contains() { # $1 needle   $2 space-separated haystack
   for _x in $2; do
     IFS=${_old_ifs}
     # Remove leading/trailing spaces
-    _x=$(echo "${_x}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    _x=$(printf '%s\n' "${_x}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
     [ "${_x}" = "$1" ] && return 0
   done
   IFS=${_old_ifs}
@@ -40,7 +40,7 @@ contains() { # $1 needle   $2 space-separated haystack
 current_version() { # $1 tool-name → prints "22.16.0", or "" if absent
   # Extract the package string e.g. "@openai/codex@0.121.0"
   _pkg=$(volta list --format=plain | awk 'NF>=2 {print $2}' | grep "^$1@" | head -n 1)
-  [ -z "${_pkg}" ] && return 0
+  [ "${_pkg}" = "" ] && return 0
   # Extract the version suffix (everything after the last @)
   echo "${_pkg}" | sed 's/.*@//'
 }
@@ -98,7 +98,7 @@ OLD_IFS=${IFS}
 IFS=','
 for _x in ${EXCL}; do
   # Trim spaces and add to list if not empty
-  _x=$(echo "${_x}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  _x=$(printf '%s\n' "${_x}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   [ "${_x}" != "" ] && EXCLUDES="${EXCLUDES} ${_x}"
 done
 IFS=${OLD_IFS}

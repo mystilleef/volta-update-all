@@ -25,8 +25,8 @@ run_test() { # $1: test name, $2: function to run
 }
 
 # ─── MOCK SETUP ───────────────────────────────────────────────────────────────
-MOCK_DIR="$(pwd)/tests/mock_bin"
-SCRIPT="$(pwd)/volta-update-all.sh"
+MOCK_DIR="${PWD}/tests/mock_bin"
+SCRIPT="${PWD}/volta-update-all.sh"
 
 setup() {
   mkdir -p "${MOCK_DIR}"
@@ -126,7 +126,7 @@ test_install_failure() {
 
 test_install() {
   setup
-  _tmp_home="$(pwd)/tests/mock_home"
+  _tmp_home="${PWD}/tests/mock_home"
   mkdir -p "${_tmp_home}"
   export HOME="${_tmp_home}"
 
