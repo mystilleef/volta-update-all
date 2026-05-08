@@ -1,34 +1,30 @@
 # `volta-update-all`
 
-A small POSIX-compliant `sh` script to update all tools managed by
+A small POSIX-compliant `sh` script that updates all tools managed by
 [Volta](https://volta.sh/).
 
 ## Features
 
-- **Comprehensive updates:** Updates Volta-managed tools such as
-  Node.js, `npm`, Yarn, `pnpm`, and installed global packages based on
-  your configured channels (`lts` or `latest`).
-- **Safe dry runs:** Preview potential changes with `--dry-run` before
-  applying them.
-- **Flexible exclusions:** Skip specific tools with `--exclude`.
-- **User-local install:** Install the script to
-  `~/.local/bin/volta-update-all` with `--install`.
-- **pnpm-aware:** Automatically skips `pnpm` unless you enable Volta's
-  `VOLTA_FEATURE_PNPM=1` feature flag.
-- **Scoped package support:** Correctly handles package names such as
-  `@scope/pkg`.
-- **Portable:** Runs with POSIX `sh`; no Bash-only features required.
-- **Tested:** Includes a shell test suite for core behavior and edge
-  cases.
+- **Comprehensive updates:** Updates Node.js, `npm`, Yarn, `pnpm`, and
+  global packages. Node.js targets `node@latest`; packages with
+  lowercase `nightly` in installed versions target `@nightly`; all
+  others target `@latest`.
+- **Safe dry runs:** Preview changes with `--dry-run`.
+- **Flexible exclusions:** Skip tools with `--exclude`.
+- **User-local install:** Install to `~/.local/bin/volta-update-all`
+  with `--install`.
+- **pnpm-aware:** Skips `pnpm` unless you enable Volta's
+  `VOLTA_FEATURE_PNPM=1` flag.
+- **Scoped package support:** Handles names such as `@scope/pkg`.
+- **Portable:** Runs with POSIX `sh`; no Bash-only features.
+- **Tested:** Includes shell tests for core behavior and edge cases.
 
 ## Prerequisites
 
-- Install [Volta](https://volta.sh/) and make it available in your
-  `PATH`.
-- Standard Unix utilities used by the script: `awk`, `grep`, `sed`,
-  `sort`, `head`, `expr`, `cp`, `chmod`, and `mkdir`.
-- **To update pnpm**, enable Volta's feature flag before running the
-  script:
+- Install [Volta](https://volta.sh/) and add it to your `PATH`.
+- Provide standard Unix utilities: `awk`, `grep`, `sed`, `sort`, `cp`,
+  `chmod`, and `mkdir`.
+- **To update pnpm**, enable Volta's feature flag first:
 
   ```sh
   export VOLTA_FEATURE_PNPM=1
@@ -96,15 +92,17 @@ Install the script, then run a dry run from your PATH:
 volta-update-all --dry-run
 ```
 
-## Configuration
+## Update targets
 
-You can configure the update channels by modifying the variables at the
-top of the script:
+The script chooses update targets from the installed package state:
 
-- `NODE_CHANNEL`: The update channel for Node.js. Defaults to `lts`.
-  Change it to `latest` for the newest Node.js version.
-- `DEFAULT_CHANNEL`: The update channel for all other tools. Defaults to
-  `latest`.
+- Node.js always updates with `volta install --quiet node@latest`.
+- Packages with installed version strings containing lowercase `nightly`
+  update with `@nightly`.
+- All other packages update with `@latest`.
+
+Volta doesn't preserve the original install tag, so the script infers
+nightly package targets from the current installed version string.
 
 ## Testing
 

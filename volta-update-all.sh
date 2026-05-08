@@ -14,35 +14,45 @@ set -eu
 IFS='
 ' # newline
 
-# ─── CONFIG ────────────────────────────────────────────────────────────────────
-NODE_CHANNEL=lts       # change to "latest" if you prefer cutting-edge Node
-DEFAULT_CHANNEL=latest # all other tools follow this channel
-
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 usage() {
   sed -n '2,10p' "$0"
   exit 1
 }
 
-contains() { # $1 needle   $2 space-separated haystack
-  _old_ifs=${IFS}
-  IFS=' '
-  for _x in $2; do
-    IFS=${_old_ifs}
-    # Remove leading/trailing spaces
-    _x=$(printf '%s\n' "${_x}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-    [ "${_x}" = "$1" ] && return 0
-  done
-  IFS=${_old_ifs}
-  return 1
-} || true
+trim() { # stdin → trimmed stdout
+  sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
+contains() { # $1 needle, $2 newline-separated haystack
+  printf '%s\n' "$2" | grep -Fxq -- "$1"
+}
 
 current_version() { # $1 tool-name → prints "22.16.0", or "" if absent
-  # Extract the package string e.g. "@openai/codex@0.121.0"
-  _pkg=$(volta list --format=plain | awk 'NF>=2 {print $2}' | grep "^$1@" | head -n 1)
-  [ "${_pkg}" = "" ] && return 0
-  # Extract the version suffix (everything after the last @)
-  echo "${_pkg}" | sed 's/.*@//'
+  volta list --format=plain |
+  awk -v tool="$1" '
+      NF >= 2 {
+        pkg = $2
+        sub(/@[^@]*$/, "", pkg)
+        if (pkg == tool) {
+          sub(/.*@/, "", $2)
+          print $2
+          exit
+        }
+      }
+    '
+}
+
+install_target() { # $1 tool-name, $2 current version → prints "tool@tag"
+  if [ "$1" = node ]; then
+    echo "$1@latest"
+    return 0
+  fi
+
+  case $2 in
+    *nightly*) echo "$1@nightly" ;;
+    *) echo "$1@latest" ;;
+  esac
 }
 
 # ─── FLAG PARSE ───────────────────────────────────────────────────────────────
@@ -55,10 +65,17 @@ while [ $# -gt 0 ]; do
     --install) INSTALL=1 ;;
     --exclude)
       shift
-      if [ $# -eq 0 ] || [ "$1" = "" ] || expr "$1" : '-\{1,2\}' > /dev/null; then
+      if [ $# -eq 0 ] || [ "$1" = "" ]; then
         echo "error: --exclude requires an argument." >&2
         usage
       fi
+      case $1 in
+        -*)
+          echo "error: --exclude requires an argument." >&2
+          usage
+          ;;
+        *) ;;
+      esac
       EXCL=$1
       ;;
     -h | --help) usage ;;
@@ -81,10 +98,10 @@ if [ "${INSTALL}" -eq 1 ]; then
 fi
 
 command -v volta > /dev/null ||
-  {
-    echo "Volta not found in PATH" >&2
-    exit 1
-  }
+{
+  echo "Volta not found in PATH" >&2
+  exit 1
+}
 
 PNPM_ENABLED=1
 if [ "${VOLTA_FEATURE_PNPM:-0}" != 1 ]; then
@@ -93,27 +110,30 @@ if [ "${VOLTA_FEATURE_PNPM:-0}" != 1 ]; then
 fi
 
 # ─── BUILD EXCLUDE LIST ───────────────────────────────────────────
-EXCLUDES=""
-OLD_IFS=${IFS}
-IFS=','
-for _x in ${EXCL}; do
-  # Trim spaces and add to list if not empty
-  _x=$(printf '%s\n' "${_x}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  [ "${_x}" != "" ] && EXCLUDES="${EXCLUDES} ${_x}"
-done
-IFS=${OLD_IFS}
+set +e
+EXCLUDES=$(printf '%s\n' "${EXCL}" |
+  tr ',' '\n' |
+  while IFS= read -r _exclude_item; do
+    _exclude_item=$(printf '%s\n' "${_exclude_item}" | trim)
+    [ "${_exclude_item}" != "" ] && printf '%s\n' "${_exclude_item}"
+done)
+set -e
 
-[ "${PNPM_ENABLED}" -eq 1 ] || EXCLUDES="${EXCLUDES} pnpm"
+if [ "${PNPM_ENABLED}" -ne 1 ]; then
+  EXCLUDES=$(printf '%s\n%s\n' "${EXCLUDES}" pnpm)
+fi
 
 # ─── COLLECT INSTALLED TOOL NAMES ─────────────────────────────────────────────
 # Note: `volta list all` finds every tool Volta has registered, even if not
 # installed. The loop logic correctly handles this by treating tools with no
 # current version as a new installation.
 TOOLS=$(volta list all --format=plain |
-  awk 'NF>=2 {print $2}' | sed 's/@[^@]*$//' | sort -u)
+awk 'NF>=2 {print $2}' | sed 's/@[^@]*$//' | sort -u)
 
 # ─── UPGRADE LOOP ─────────────────────────────────────────────────────────────
-for T in ${TOOLS}; do
+printf '%s\n' "${TOOLS}" | while IFS= read -r T; do
+  [ "${T}" != "" ] || continue
+
   set +e
   contains "${T}" "${EXCLUDES}"
   _res=$?
@@ -123,17 +143,16 @@ for T in ${TOOLS}; do
     continue
   fi
 
-  CHAN=${DEFAULT_CHANNEL}
-  [ "${T}" = node ] && CHAN=${NODE_CHANNEL}
-
   BEFORE=$(current_version "${T}")
 
+  TARGET=$(install_target "${T}" "${BEFORE}")
+
   if [ "${DRY}" -eq 1 ]; then
-    echo "would run: volta install --quiet ${T}@${CHAN}"
+    echo "would run: volta install --quiet ${TARGET}"
     continue
   fi
 
-  if ! volta install --quiet "${T}@${CHAN}"; then
+  if ! volta install --quiet "${TARGET}"; then
     echo "❌ Failed to install ${T}" >&2
     exit 1
   fi

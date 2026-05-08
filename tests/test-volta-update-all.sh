@@ -29,6 +29,7 @@ MOCK_DIR="${PWD}/tests/mock_bin"
 SCRIPT="${PWD}/volta-update-all.sh"
 
 setup() {
+  unset MOCK_VOLTA_LIST MOCK_VOLTA_INSTALL_FAIL
   mkdir -p "${MOCK_DIR}"
   export PATH="${MOCK_DIR}:${PATH}"
   export VOLTA_FEATURE_PNPM=1 # Silence the warning
@@ -80,11 +81,14 @@ test_missing_volta() {
 test_dry_run() {
   setup
   create_mock_volta
-  export MOCK_VOLTA_LIST="node node@20.0.0"
+  export MOCK_VOLTA_LIST="node node@20.0.0-nightly\nnormal normal@1.0.0\npreview preview@0.0.1-nightly.20260508"
   OUT=$("${SCRIPT}" --dry-run)
   teardown
-  echo "${OUT}" | grep -q "would run: volta install --quiet node@lts" &&
-    echo "${OUT}" | grep -q "Dry run complete."
+  echo "${OUT}" | grep -q "would run: volta install --quiet node@latest" &&
+  echo "${OUT}" | grep -q "would run: volta install --quiet normal@latest" &&
+  echo "${OUT}" | grep -q "would run: volta install --quiet preview@nightly" &&
+  ! echo "${OUT}" | grep -q "would run: volta install --quiet node@nightly" &&
+  echo "${OUT}" | grep -q "Dry run complete."
 }
 
 test_exclude() {
@@ -95,7 +99,7 @@ test_exclude() {
   teardown
   # Check that node was skipped and npm was installed
   echo "${OUT}" | grep -q "Skipping node" &&
-    echo "${OUT}" | grep -q "npm already at 10.0.0"
+  echo "${OUT}" | grep -q "npm already at 10.0.0"
 }
 
 test_exclude_missing_arg() {
@@ -152,7 +156,7 @@ test_scoped_packages() {
 
   # Ensure the scoped package and normal package were parsed correctly
   echo "${OUT}" | grep -q "would run: volta install --quiet @openai/codex@latest" &&
-    echo "${OUT}" | grep -q "would run: volta install --quiet normal@latest"
+  echo "${OUT}" | grep -q "would run: volta install --quiet normal@latest"
 }
 
 test_pnpm_skipped_without_feature_flag() {
@@ -165,8 +169,19 @@ test_pnpm_skipped_without_feature_flag() {
   teardown
 
   echo "${OUT}" | grep -q "VOLTA_FEATURE_PNPM=1 not set; pnpm will be skipped." &&
-    echo "${OUT}" | grep -q "Skipping pnpm" &&
-    ! echo "${OUT}" | grep -q "would run: volta install --quiet pnpm@latest"
+  echo "${OUT}" | grep -q "Skipping pnpm" &&
+  ! echo "${OUT}" | grep -q "would run: volta install --quiet pnpm@latest"
+}
+
+test_literal_package_names() {
+  setup
+  create_mock_volta
+  export MOCK_VOLTA_LIST="toolxjs toolxjs@2.0.0\ntool.js tool.js@1.0.0"
+
+  OUT=$("${SCRIPT}" --exclude toolxjs 2>&1)
+  teardown
+
+  echo "${OUT}" | grep -q "tool.js already at 1.0.0"
 }
 
 # ─── RUNNER ───────────────────────────────────────────────────────────────────
@@ -182,6 +197,7 @@ run_test "Install failure" test_install_failure
 run_test "Install flag" test_install
 run_test "Scoped packages" test_scoped_packages
 run_test "pnpm skipped without feature flag" test_pnpm_skipped_without_feature_flag
+run_test "Literal package names" test_literal_package_names
 
 printf "\n🏁 Test Summary: %d failures\n" "${FAILURES}"
 if [ "${FAILURES}" -gt 0 ]; then
