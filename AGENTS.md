@@ -7,8 +7,8 @@
 
 ## Rules
 
-- Adhere to the shell script guide in kb when editing shell scripts.
-- Adhere to the shell command guide in kb when running shell scripts.
+- Update tests after edits.
+- Run tests after task completion.
 
 ## Gotchas
 
