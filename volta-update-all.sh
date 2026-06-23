@@ -5,18 +5,21 @@
 #   --dry-run         Show what would change, make no installs
 #   --exclude a,b,c   Comma-separated list of tool names to skip
 #   --install         Install the script to ~/.local/bin/volta-update-all
+#   --version         Print version and exit
 #   -h, --help        Display the help message
 #
 # Works with POSIX sh - no Bash-only features.
 
 set -eu
 
+VERSION="0.1.0"
+
 IFS='
 ' # newline
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 usage() {
-  sed -n '2,10p' "$0"
+  sed -n '2,11p' "$0"
   exit 1
 }
 
@@ -55,6 +58,30 @@ install_target() { # $1 tool-name, $2 current version → prints "tool@tag"
   esac
 }
 
+script_dir() { # prints real directory of this script (follows one symlink level)
+  _self=$(command -v "$0" 2>/dev/null || echo "$0")
+  if _link=$(readlink "${_self}" 2>/dev/null); then
+    dirname "${_link}"
+  else
+    cd "$(dirname "${_self}")" && pwd
+  fi
+}
+
+# ─── SNAPSHOT ENTRY PARSING ──────────────────────────────────────────────────
+is_blank_line() {
+  [ -z "$(printf '%s\n' "$1" | trim)" ]
+}
+
+# $1: "tool@version" or "@scope/name@version" → prints "tool" or "@scope/name"
+extract_tool_from_entry() {
+  printf '%s\n' "$1" | sed 's/@[^@]*$//'
+}
+
+# $1: "tool@version" or "@scope/name@version" → prints "version"
+extract_version_from_entry() {
+  printf '%s\n' "$1" | sed 's/.*@//'
+}
+
 # ─── FLAG PARSE ───────────────────────────────────────────────────────────────
 DRY=0
 INSTALL=0
@@ -78,6 +105,7 @@ while [ $# -gt 0 ]; do
       esac
       EXCL=$1
       ;;
+    --version) echo "${VERSION}"; exit 0 ;;
     -h | --help) usage ;;
     *)
       echo "unknown flag: $1" >&2
@@ -88,10 +116,39 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "${INSTALL}" -eq 1 ]; then
+  _script_dir=$(script_dir)
+  _snapshot="${_script_dir}/volta-packages.txt"
+
+  if [ -f "${_snapshot}" ]; then
+    command -v volta > /dev/null ||
+    {
+      echo "❌ Volta not found in PATH; cannot restore snapshot." >&2
+      exit 1
+    }
+
+    while IFS= read -r _entry; do
+      if is_blank_line "${_entry}"; then
+        continue
+      fi
+
+      _tool=$(extract_tool_from_entry "${_entry}")
+      _version=$(extract_version_from_entry "${_entry}")
+
+      echo "📦 Restoring ${_tool} @ ${_version}..."
+      if ! volta install --quiet "${_tool}@${_version}"; then
+        echo "❌ Failed to restore ${_tool} @ ${_version}" >&2
+        exit 1
+      fi
+    done < "${_snapshot}"
+
+    echo "✅ Snapshot restore complete."
+  else
+    echo "⚠️  No volta-packages.txt snapshot found; skipping restore." >&2
+  fi
+
   _dest="${HOME}/.local/bin"
   mkdir -p "${_dest}"
-  cp "$0" "${_dest}/volta-update-all"
-  chmod +x "${_dest}/volta-update-all"
+  ln -sf "${_script_dir}/$(basename "$0")" "${_dest}/volta-update-all"
   echo "✅ Installed to ${_dest}/volta-update-all"
   echo "💡 Please ensure ${_dest} is in your PATH."
   exit 0
@@ -103,12 +160,6 @@ command -v volta > /dev/null ||
   exit 1
 }
 
-PNPM_ENABLED=1
-if [ "${VOLTA_FEATURE_PNPM:-0}" != 1 ]; then
-  PNPM_ENABLED=0
-  echo "⚠️  VOLTA_FEATURE_PNPM=1 not set; pnpm will be skipped."
-fi
-
 # ─── BUILD EXCLUDE LIST ───────────────────────────────────────────
 set +e
 EXCLUDES=$(printf '%s\n' "${EXCL}" |
@@ -119,10 +170,6 @@ EXCLUDES=$(printf '%s\n' "${EXCL}" |
 done)
 set -e
 
-if [ "${PNPM_ENABLED}" -ne 1 ]; then
-  EXCLUDES=$(printf '%s\n%s\n' "${EXCLUDES}" pnpm)
-fi
-
 # ─── COLLECT INSTALLED TOOL NAMES ─────────────────────────────────────────────
 # Note: `volta list all` finds every tool Volta has registered, even if not
 # installed. The loop logic correctly handles this by treating tools with no
@@ -131,7 +178,7 @@ TOOLS=$(volta list all --format=plain |
 awk 'NF>=2 {print $2}' | sed 's/@[^@]*$//' | sort -u)
 
 # ─── UPGRADE LOOP ─────────────────────────────────────────────────────────────
-printf '%s\n' "${TOOLS}" | while IFS= read -r T; do
+while IFS= read -r T; do
   [ "${T}" != "" ] || continue
 
   set +e
@@ -166,10 +213,16 @@ printf '%s\n' "${TOOLS}" | while IFS= read -r T; do
   else
     echo "⬆️  Upgraded ${T} ${BEFORE} → ${AFTER}"
   fi
-done
+done <<TOOLS_END
+${TOOLS}
+TOOLS_END
 
 if [ "${DRY}" -eq 1 ]; then
   echo "✅ Dry run complete."
 else
+  _proj_dir=$(script_dir)
+  _snapshot=$(volta list --format=plain | awk 'NF>=2 {print $2}')
+  printf '%s\n' "${_snapshot}" > "${_proj_dir}/volta-packages.txt"
+  echo "📸 Snapshot saved to ${_proj_dir}/volta-packages.txt"
   echo "🎉 All done!"
 fi
