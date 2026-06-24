@@ -1,121 +1,88 @@
 # `volta-update-all`
 
-POSIX `sh` script that updates every tool managed by
-[Volta](https://volta.sh/).
+Update every Volta-managed tool from a single POSIX `sh` script.
 
 ## Features
 
-- Updates Node.js (`node@latest`), `npm`, and all global packages.
-  Nightly packages (`nightly` in version string) target `@nightly`;
-  others target `@latest`.
-- `--dry-run` previews changes without installing.
-- `--exclude` skips comma-separated tool names.
-- `--install` symlinks to `~/.local/bin/volta-update-all`.
+- Upgrades `node` via `node@latest`.
+- Upgrades global packages from `volta list all`.
+- Routes `nightly` versions to `@nightly`; others to `@latest`.
+- Supports `--dry-run`, `--exclude`, `--install`, `--version`, and help.
 - Handles scoped packages (`@scope/pkg`).
-- Successful upgrades write a `volta-packages.txt` snapshot; `--install`
-  restores from it.
-- POSIX `sh` — no Bash-only features.
-- Includes shell test suite.
+- Writes `volta-packages.txt` after successful non-dry-run upgrades.
+- Resolves symlinks for snapshot reads/writes.
 
-## Prerequisites
+## Requirements
 
-- [Volta](https://volta.sh/) on your `PATH`.
-- Standard Unix utilities: `awk`, `grep`, `sed`, `sort`, `mkdir`.
+- [Volta](https://volta.sh/) on `PATH`.
+- POSIX `sh`; no Bash extensions.
+- Unix tools: `awk`, `grep`, `sed`, `sort`, `tr`, `mkdir`, `ln`,
+  `dirname`, `basename`, `pwd`, `readlink`.
+
+## Install
+
+```sh
+./volta-update-all.sh --install
+```
+
+Restores `volta-packages.txt` entries (`volta install tool@version`),
+then symlinks into `~/.local/bin/volta-update-all`. Retain the
+repository directory. Add `~/.local/bin` to `PATH` as needed.
 
 ## Usage
 
-### Run from the repository
-
 ```sh
-chmod +x volta-update-all.sh
+# Run upgrades
 ./volta-update-all.sh
-```
 
-### Install to `~/.local/bin`
-
-Symlinks `~/.local/bin/volta-update-all` → the script. Restores from
-`volta-packages.txt` if present before symlinking.
-
-```sh
-./volta-update-all.sh --install
-volta-update-all
-```
-
-Add `~/.local/bin` to your `PATH` and keep the cloned `repo`.
-
-### Flags
-
-| Flag              | Description                                         |
-| ----------------- | --------------------------------------------------- |
-| `--dry-run`       | Show changes without installing.                    |
-| `--exclude a,b,c` | Comma-separated tool names to skip.                 |
-| `--install`       | Install symlink to `~/.local/bin/volta-update-all`. |
-| `--version`       | Print version and exit.                             |
-| `-h`, `--help`    | Display help.                                       |
-
-### Examples
-
-```sh
-# Skip yarn
-./volta-update-all.sh --exclude yarn
-
-# Dry run
+# Preview
 ./volta-update-all.sh --dry-run
 
-# Install then dry run from PATH
-./volta-update-all.sh --install
+# Skip tools
+./volta-update-all.sh --exclude yarn,pnpm
+
+# From installed symlink
 volta-update-all --dry-run
 ```
 
-## Update targets
+| Flag            | Action                                                 |
+| --------------- | ------------------------------------------------------ |
+| `--dry-run`     | Print planned `volta install` commands; skip writes.   |
+| `--exclude a,b` | Skip comma-separated tool names.                       |
+| `--install`     | Restore snapshot entries; symlink into `~/.local/bin`. |
+| `--version`     | Print `0.1.0`.                                         |
+| `-h`, `--help`  | Print help and exit.                                   |
 
-Targets derive from the installed package state:
+## Update logic
 
-- Node.js → `volta install --quiet node@latest`.
-- Packages with lowercase `nightly` in the installed version →
-  `@nightly`.
-- All other packages → `@latest`.
+- Source list: `volta list all --format=plain` → second field → strip
+  version suffix → sort unique.
+- Current version: `volta list --format=plain` → match tool → trailing
+  version.
+- Target resolution:
+  - `node` → `node@latest`
+  - Version contains lowercase `nightly` → `tool@nightly`
+  - Other → `tool@latest`
+- Failed `volta install` exits nonzero; previous snapshot preserved.
 
-Volta doesn't preserve the original install tag, so nightly targets
-infer from the current installed version string.
+## Snapshot
 
-## Snapshot and restore
+- **Path**: script directory (one symlink resolution).
+- **Format**: `tool@version` or `@scope/name@version`, one per line.
+- Written after successful upgrade loop. Dry runs skip writes. Failed
+  upgrades preserve prior file.
+- Install restore: warns on missing snapshot; skips blank lines;
+  installs each entry before symlink. Failure aborts install.
 
-Non-dry-run upgrades write `volta-packages.txt` next to the script after
-every fully successful run. Each line: `tool@version` (preserving
-`@scope/name@version`).
-
-- **Placement**: Resolved through symlinks—
-  `~/.local/bin/volta-update-all` writes to the cloned `repo`.
-- **Dry-run**: Never touches the snapshot file.
-- **Failure**: Any failed upgrade exits nonzero; previous snapshot stays
-  intact.
-- **Success**: `volta list` output replaces the previous snapshot.
-
-### Install-time restore
-
-`--install` checks for `volta-packages.txt` next to the script before
-symlinking.
-
-- **Present**: Each non-blank entry restores via
-  `volta install tool@version`. Symlink installs after all entries
-  succeed.
-- **Absent**: Warns, then proceeds with install.
-- **Restore failure**: Exits nonzero—no silent partial bootstrap.
-
-Commit `volta-packages.txt` so clones reproduce the same `toolchain` via
-`--install`.
-
-## Testing
+## Test
 
 ```sh
 ./tests/test-volta-update-all.sh
 ```
 
+Covers help, version, dry run, exclusions, scoped packages, snapshots,
+install restore, symlink paths, and helpers.
+
 ## License
 
-`MIT`. See `LICENSE`.
-
----
-
-_Created by `Dominik Roblek` © 2025_
+**MIT**
