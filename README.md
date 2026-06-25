@@ -1,6 +1,6 @@
-# `volta-update-all`
+# Global **Volta** package updater
 
-Update every Volta-managed tool from a single POSIX `sh` script.
+Update all `npm` packages managed by `volta`.
 
 ## Features
 
@@ -33,13 +33,13 @@ repository directory. Add `~/.local/bin` to `PATH` as needed.
 
 ```sh
 # Run upgrades
-./volta-update-all.sh
+volta-update-all
 
 # Preview
-./volta-update-all.sh --dry-run
+volta-update-all --dry-run
 
 # Skip tools
-./volta-update-all.sh --exclude yarn,pnpm
+volta-update-all --exclude yarn,pnpm
 
 # From installed symlink
 volta-update-all --dry-run
