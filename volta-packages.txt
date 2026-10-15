@@ -1,7 +1,7 @@
 node@26.12.0
 npm@12.2.0
-@ai-sdk/openai-compatible@3.0.68
-@earendil-works/pi-coding-agent@project
+@ai-sdk/openai-compatible@3.0.69
+@earendil-works/pi-coding-agent@1.2.0
 @google/gemini-cli@0.65.0-nightly.20261014.g42c518220
 @googleworkspace/cli@0.22.5
 @openai/codex@0.162.1
