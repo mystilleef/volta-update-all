@@ -32,8 +32,8 @@ contains() { # $1 needle, $2 newline-separated haystack
 }
 
 current_version() { # $1 tool-name → prints "22.16.0", or "" if absent
-  volta list --format=plain |
-  awk -v tool="$1" '
+  volta list --format=plain \
+  | awk -v tool="$1" '
       NF >= 2 {
         pkg = $2
         sub(/@[^@]*$/, "", pkg)
@@ -48,7 +48,7 @@ current_version() { # $1 tool-name → prints "22.16.0", or "" if absent
 
 install_target() { # $1 tool-name, $2 current version → prints "tool@tag"
   if [ "$1" = node ]; then
-    echo "$1@latest"
+    echo "$1@lts"
     return 0
   fi
 
@@ -59,8 +59,8 @@ install_target() { # $1 tool-name, $2 current version → prints "tool@tag"
 }
 
 script_dir() { # prints real directory of this script (follows one symlink level)
-  _self=$(command -v "$0" 2>/dev/null || echo "$0")
-  if _link=$(readlink "${_self}" 2>/dev/null); then
+  _self=$(command -v "$0" 2> /dev/null || echo "$0")
+  if _link=$(readlink "${_self}" 2> /dev/null); then
     dirname "${_link}"
   else
     cd "$(dirname "${_self}")" && pwd
@@ -69,7 +69,7 @@ script_dir() { # prints real directory of this script (follows one symlink level
 
 # ─── SNAPSHOT ENTRY PARSING ──────────────────────────────────────────────────
 is_blank_line() {
-  [ -z "$(printf '%s\n' "$1" | trim)" ]
+  [ "$(printf '%s\n' "$1" | trim)" = "" ]
 }
 
 # $1: "tool@version" or "@scope/name@version" → prints "tool" or "@scope/name"
@@ -105,7 +105,10 @@ while [ $# -gt 0 ]; do
       esac
       EXCL=$1
       ;;
-    --version) echo "${VERSION}"; exit 0 ;;
+    --version)
+      echo "${VERSION}"
+      exit 0
+      ;;
     -h | --help) usage ;;
     *)
       echo "unknown flag: $1" >&2
@@ -120,8 +123,8 @@ if [ "${INSTALL}" -eq 1 ]; then
   _snapshot="${_script_dir}/volta-packages.txt"
 
   if [ -f "${_snapshot}" ]; then
-    command -v volta > /dev/null ||
-    {
+    command -v volta > /dev/null \
+      || {
       echo "❌ Volta not found in PATH; cannot restore snapshot." >&2
       exit 1
     }
@@ -154,17 +157,17 @@ if [ "${INSTALL}" -eq 1 ]; then
   exit 0
 fi
 
-command -v volta > /dev/null ||
-{
+command -v volta > /dev/null \
+  || {
   echo "Volta not found in PATH" >&2
   exit 1
 }
 
 # ─── BUILD EXCLUDE LIST ───────────────────────────────────────────
 set +e
-EXCLUDES=$(printf '%s\n' "${EXCL}" |
-  tr ',' '\n' |
-  while IFS= read -r _exclude_item; do
+EXCLUDES=$(printf '%s\n' "${EXCL}" \
+    | tr ',' '\n' \
+    | while IFS= read -r _exclude_item; do
     _exclude_item=$(printf '%s\n' "${_exclude_item}" | trim)
     [ "${_exclude_item}" != "" ] && printf '%s\n' "${_exclude_item}"
 done)
@@ -174,8 +177,8 @@ set -e
 # Note: `volta list all` finds every tool Volta has registered, even if not
 # installed. The loop logic correctly handles this by treating tools with no
 # current version as a new installation.
-TOOLS=$(volta list all --format=plain |
-awk 'NF>=2 {print $2}' | sed 's/@[^@]*$//' | sort -u)
+TOOLS=$(volta list all --format=plain \
+  | awk 'NF>=2 {print $2}' | sed 's/@[^@]*$//' | sort -u)
 
 # ─── UPGRADE LOOP ─────────────────────────────────────────────────────────────
 while IFS= read -r T; do
@@ -213,7 +216,7 @@ while IFS= read -r T; do
   else
     echo "⬆️  Upgraded ${T} ${BEFORE} → ${AFTER}"
   fi
-done <<TOOLS_END
+done << TOOLS_END
 ${TOOLS}
 TOOLS_END
 

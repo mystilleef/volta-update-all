@@ -93,7 +93,7 @@ test_dry_run() {
   export MOCK_VOLTA_LIST="node node@20.0.0-nightly\nnormal normal@1.0.0\npreview preview@0.0.1-nightly.20260508"
   OUT=$("${SCRIPT}" --dry-run)
   teardown
-  echo "${OUT}" | grep -q "would run: volta install --quiet node@latest" &&
+  echo "${OUT}" | grep -q "would run: volta install --quiet node@lts" &&
   echo "${OUT}" | grep -q "would run: volta install --quiet normal@latest" &&
   echo "${OUT}" | grep -q "would run: volta install --quiet preview@nightly" &&
   ! echo "${OUT}" | grep -q "would run: volta install --quiet node@nightly" &&

@@ -4,7 +4,7 @@ Update all `npm` packages managed by `volta`.
 
 ## Features
 
-- Upgrades `node` via `node@latest`.
+- Upgrades `node` via `node@lts`.
 - Upgrades global packages from `volta list all`.
 - Routes `nightly` versions to `@nightly`; others to `@latest`.
 - Supports `--dry-run`, `--exclude`, `--install`, `--version`, and help.
@@ -60,7 +60,7 @@ volta-update-all --dry-run
 - Current version: `volta list --format=plain` → match tool → trailing
   version.
 - Target resolution:
-  - `node` → `node@latest`
+  - `node` → `node@lts`
   - Version contains lowercase `nightly` → `tool@nightly`
   - Other → `tool@latest`
 - Failed `volta install` exits nonzero; previous snapshot preserved.
